@@ -7,6 +7,8 @@
 
 #include "base/bind.h"
 #include "base/message_loop/message_loop.h"
+#include "base/threading/thread_task_runner_handle.h"
+#include "third_party/blink/public/platform/task_type.h"
 
 namespace atom {
 
@@ -28,7 +30,13 @@ void ObjectLifeMonitor::OnObjectGC(
     const v8::WeakCallbackInfo<ObjectLifeMonitor>& data) {
   ObjectLifeMonitor* self = data.GetParameter();
   self->target_.Reset();
-  self->RunDestructor();
+
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner =
+      base::ThreadTaskRunnerHandle::Get();
+  task_runner->PostTask(FROM_HERE,
+                        base::BindOnce(&ObjectLifeMonitor::RunDestructor,
+                                       self->weak_ptr_factory_.GetWeakPtr()));
+
   data.SetSecondPassCallback(Free);
 }
 
